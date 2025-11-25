@@ -3,7 +3,7 @@ from sqlalchemy import create_engine, Column, Integer, String, BigInteger, Date
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from datetime import datetime
 
-DB_URL = "postgresql+psycopg2://postgres:password@localhost:5432/financial_data"
+DB_URL = "postgresql+psycopg2://postgres:NIhao4869@localhost:5432/AlphaVantage"
 
 engine = create_engine(DB_URL, echo=False)
 Session = sessionmaker(bind=engine)
@@ -59,6 +59,7 @@ class BalanceSheet(Base):
     commonStock = Column(BigInteger) # 普通股
     commonStockSharesOutstanding = Column(BigInteger) # 流通在外的普通股股数
 
+Base.metadata.create_all(engine)
     
 def clean_value(data):
     if data in (None, "", "None"):
@@ -76,7 +77,7 @@ def parse_date(date_str):
     except Exception:
         return None
     
-with open("D:\python_project\NVDA_balance_sheet.json", "r", encoding="utf-8") as f:
+with open("NVDA_balance_sheet.json", "r", encoding="utf-8") as f:
     data = json.load(f)
 
 symbol = data.get("symbol", "")
