@@ -3,35 +3,11 @@ from sqlalchemy import create_engine, Column, Integer, String, BigInteger, Date
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from datetime import datetime
 
+DB_URL = "postgresql+psycopg2://postgres:password@localhost:5432/financial_data"
 
-class Data2PG():
-    def __init__(
-            self,
-            db_password: str,
-            data: dict,
-            *,
-            host: str = "localhost",
-            port: int = 5432,
-            db_name: str
-            ):
-        self.data = data
-        self.DB_URL = f"postgresql+psycopg2://postgre:{db_password}@{host}:{port}/{db_name}"
-        engine = create_engine(self.DB_URL)
-        SessionLocal = sessionmaker(bind=engine)
-        session = SessionLocal()
-    
-    def parse_balance_sheet_json(self):
-        symbol = self.data['symbol']
-        symbol = Data2PG.clean_value(self.data['symbol'])
-
-    @staticmethod
-    def clean_value(data):
-        if data in ("None", None, ""):
-            return None
-        if isinstance(data, str) and data.isdigit():
-            return int(data)
-        return data
-
+engine = create_engine(DB_URL, echo=False)
+Session = sessionmaker(bind=engine)
+session = Session()
 
 class Base(DeclarativeBase):
     pass
@@ -84,10 +60,77 @@ class BalanceSheet(Base):
     commonStockSharesOutstanding = Column(BigInteger) # 流通在外的普通股股数
 
     
-    @staticmethod
-    def parse_date(date):
-        return datetime.strptime(date, "%Y-%m-%d").date()
+def clean_value(data):
+    if data in (None, "", "None"):
+        return None
+    if isinstance(data, str) and data.isdigit():
+        return int(data)
+    return data
 
+def clean_dict(d:dict):
+    return {k: clean_value(d) for k, d in d.items()}
 
+def parse_date(date_str):
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d").date()
+    except Exception:
+        return None
+    
+with open("D:\python_project\NVDA_balance_sheet.json", "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+symbol = data.get("symbol", "")
+# insert quarterly reports
+for report in data.get("quarterlyReports", []):
+    reprot_clean = clean_dict(report)
+
+    row = BalanceSheet(
+        symbol=symbol,
+        report_type="quarterly",
+        fiscalDateEnding=parse_date(reprot_clean.get("fiscalDateEnding")),
+        reportedCurrency=reprot_clean.get("reportedCurrency"),
+        totalAssets=reprot_clean.get("totalAssets"),
+        totalCurrentAssets=reprot_clean.get("totalCurrentAssets"),
+        cashAndCashEquivalentsAtCarryingValue=reprot_clean.get("cashAndCashEquivalentsAtCarryingValue"),
+        cashAndShortTermInvestments=reprot_clean.get("cashAndShortTermInvestments"),
+        inventory=reprot_clean.get("inventory"),
+        currentNetReceivables=reprot_clean.get("currentNetReceivables"),
+        totalNonCurrentAssets=reprot_clean.get("totalNonCurrentAssets"),
+        propertyPlantEquipment=reprot_clean.get("propertyPlantEquipment"),
+        accumulateDepreciationAmortizationPPE=reprot_clean.get("accumulateDepreciationAmortizationPPE"),
+        intangibleAssets=reprot_clean.get("intangibleAssets"),
+        intangibleAssetsExcludingGoodwill=reprot_clean.get("intangibleAssetsExcludingGoodwill"),
+        goodwill=reprot_clean.get("goodwill"),
+        investments=reprot_clean.get("investments"),
+        longTermInvestments=reprot_clean.get("longTermInvestments"),
+        shortTermInvestments=reprot_clean.get("shortTermInvestments"),
+        otherCurrentAssets=reprot_clean.get("otherCurrentAssets"),
+        otherNonCurrentAssets=reprot_clean.get("otherNonCurrentAssets"),
+        totalLiabilities=reprot_clean.get("totalLiabilities"),
+        totalCurrentLiabilities=reprot_clean.get("totalCurrentLiabilities"),
+        currentAccountsPayable=reprot_clean.get("currentAccountsPayable"),
+        deferredRevenue=reprot_clean.get("deferredRevenue"),
+        currentDebt=reprot_clean.get("currentDebt"),
+        shortTermDebt=reprot_clean.get("shortTermDebt"),
+        totalNonCurrentLiabilities=reprot_clean.get("totalNonCurrentLiabilities"),
+        capitalLeaseObligations=reprot_clean.get("capitalLeaseObligations"),
+        longTermDebt=reprot_clean.get("longTermDebt"),
+        currentLongTermDebt=reprot_clean.get("currentLongTermDebt"),
+        longTermDebtNoncurrent=reprot_clean.get("longTermDebtNoncurrent"),
+        shortLongTermDebtTotal=reprot_clean.get("shortLongTermDebtTotal"),
+        otherCurrentLiabilities=reprot_clean.get("otherCurrentLiabilities"),
+        otherNonCurrentLiabilities=reprot_clean.get("otherNonCurrentLiabilities"),
+        totalShareholderEquity=reprot_clean.get("totalShareholderEquity"),
+        treasuryStock=reprot_clean.get("treasuryStock"),
+        retainedEarnings=reprot_clean.get("retainedEarnings"),
+        commonStock=reprot_clean.get("commonStock"),
+        commonStockSharesOutstanding=reprot_clean.get("commonStockSharesOutstanding"),
+        )
+    session.add(row)
+
+session.commit()
+session.close()
+
+print("Data inserted successfully.")
 
 
