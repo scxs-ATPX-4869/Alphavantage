@@ -95,7 +95,20 @@ class AlphaVantage:
             balance_sheets.append(report_clean)
         return balance_sheets
     
-
+    def overview(self, symbol: str) -> dict:
+        params = {
+            "function": "OVERVIEW",
+            "symbol": symbol,
+            "apikey": self.apikey,
+        }
+        response = requests.get(self.base_url, params)
+        if response.ok:
+            logger.info(f"Successfully fetched overview for symbol: {symbol}")
+        else:
+            logger.error(f"Failed to fetch overview for symbol: {symbol} with status code: {response.status_code}")
+        response_data: dict = response.json()
+        
+        return self.clean_dict(response_data)
 
 
     
